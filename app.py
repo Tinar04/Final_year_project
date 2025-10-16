@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 import pickle
+import os
 
 
 with open(r'ml_models\model.pkl', 'rb') as f:
@@ -14,7 +15,8 @@ app = Flask(__name__)
 app.secret_key = "my_secret_key"
 
 # Database config (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///Mental_Stress.db'
+db_path = os.path.join(os.getcwd(), "Mental_Stress.db")
+app.config['SQLALCHEMY_DATABASE_URI'] =f"sqlite:///{db_path}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -36,14 +38,23 @@ class User(db.Model):
     
     prediction = db.Column(db.String(50))
 
+    def __repr__(self):
+         return f"{self.age},{self.username}"
+
+@app.route('/')
+def hello():
+     database = User(username ="Tina",age=20)
+     db.session.add(User)
+     db.session.commit()
 
 with app.app_context():
     db.create_all()
+print("Database file exists:", os.path.isfile("Mental_Stress.db"))
 
 
 
 # Test prediction with fake data
-sample_input = [[0]*20]  # 195 zeros to match model features
+sample_input = [[0]*20] 
   # 20 zeros as placeholder
   # replace with correct number of features
 print("18-21 model prediction:", model_18_21.predict(sample_input))
