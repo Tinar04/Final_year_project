@@ -15,14 +15,14 @@ import pandas as pd
 with open(r'ml_models\model.pkl', 'rb') as f:
     model_18_21 = pickle.load(f)
 
-with open(r'ml_models\preprocess_pipeline.pkl', 'rb') as f:
-    preprocess_pipeline = pickle.load(f)
+with open(r'ml_models\preprocess__new_pipeline(18-21).pkl', 'rb') as f:
+    preprocess_pipeline_new_18_21 = pickle.load(f)
 
 with open(r'ml_models\cat_model.pkl', 'rb') as f:
     cat_model = pickle.load(f)
 
-with open(r'ml_models\preprocess_pipeline(18-21).pkl', 'rb') as f:
-    preprocess_pipeline_18_21 = pickle.load(f)
+with open(r'ml_models\preprocess_cat_new_pipeline.pkl', 'rb') as f:
+    preprocess_pipeline_new_catboost = pickle.load(f)
 
 app = Flask(__name__)
 app.secret_key = "my_secret_key"
@@ -116,7 +116,7 @@ def quiz_18_21():
        
        df = pd.DataFrame([user_input])
      # preprocessing
-       df = preprocess_pipeline_18_21.transform(df)
+       df = preprocess_pipeline_new_18_21.transform(df)
      # prediction 
        result = model_18_21.predict(df)[0]
      #personalized advice
@@ -161,7 +161,7 @@ def quiz_22_60():
 
         df = pd.DataFrame([user_input]) 
             # preprocessing
-        processed = preprocess_pipeline.transform(df)
+        processed = preprocess_pipeline_new_catboost.transform(df)
         
             # prediction
         result = cat_model.predict(processed)[0]
