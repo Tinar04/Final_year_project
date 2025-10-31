@@ -170,10 +170,10 @@ advise_22_60 ={
         "Long working hours can increase stress — try taking short breaks.",
         "Consider balancing work and personal life to reduce stress."
     ],
-    "Medium": [
+        "Medium": [
         "Work hours are moderate — maintain a healthy balance."
     ],
-    "Low": [
+         "Low": [
         "Great work-life balance — keep it up!"
     ]
     }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Result</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f3f6fa;margin:0;padding:36px;display:flex;justify-content:center}
+    .card{max-width:720px;background:#fff;padding:26px;border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,0.08);width:100%}
+    h2{margin:0 0 12px;text-align:center}
+    .box{background:#f7fbff;border-left:6px solid #2f6ef8;padding:14px;border-radius:8px;margin:18px 0;font-size:18px;text-transform:lowercase;}
+    .advice{margin-top:12px;padding:12px;background:#fafafa;border-radius:8px;color:#333;text-transform:none;}
+    .actions{margin-top:18px;text-align:center}
+    .btn{display:inline-block;padding:10px 18px;background:#2f6ef8;color:#fff;border-radius:8px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Stress Level Result</h2>
+
+    <div class="box">  https://github.com/Tinar04/Final_year_project.git
+      <strong>Detected level:</strong>
+      <span id="detected">{{ result|lower }}</span>
+    </div>
+
+    <div class="advice">
+      {% if result %}
+        {% set lvl = result|lower %}
+        {% if 'low' in lvl %}
+          You're showing low stress — maintain your balance and continue your current healthy habits.
+        {% elif 'medium' in lvl %}
+          Stress seems moderate. Try mindfulness, deep breathing, or a short walk daily.
+        {% elif 'high' in lvl %}
+          High stress detected. Please take breaks, talk to someone you trust, or seek professional support.
+        {% else %}
+          Result: {{ result|lower }} — customize this advice for new stress levels.
+        {% endif %}
+      {% else %}
+        No result detected. Please retake the quiz.
+      {% endif %}
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="/quiz_18_21">Retake Quiz</a>
+    </div>
+  </div>
+</body>
+</html>
