@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <style>
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        background: #f5f7fa;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: url("/static/images/login-bg.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        z-index: 0;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 25px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 420px;
+        padding: 60px 35px;
+        text-align: center;
+        transition: transform 0.3s ease;
+      }
+
+      .container:hover {
+        transform: translateY(-3px);
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      p {
+        color: #666;
+        font-size: 0.95rem;
+        margin-bottom: 30px;
+      }
+
+      .input-group {
+        text-align: left;
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        font-size: 0.9rem;
+        color: #333;
+        margin-bottom: 6px;
+        font-weight: 400;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1.5px solid #e0e0e0;
+        font-size: 0.80rem;
+        outline: none;
+        background-color: rgba(255, 255, 255, 0.8);
+        transition: 0.2s ease;
+      }
+
+      input:focus {
+        border-color: #84d9c1;
+        box-shadow: 0 0 6px rgba(132, 217, 193, 0.5);
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #a3f0d1, #80d6b1);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background: linear-gradient(135deg, #7edab7, #6cc7a3);
+        transform: translateY(-2px);
+      }
+
+      .back-home {
+        display: inline-block;
+        margin-top: 25px;
+        font-size: 0.95rem;
+        color: #555;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      .back-home:hover {
+        color: #80d6b1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Welcome</h2>
+      <p>Please enter your details to continue</p>
+
+      <form method="POST" action="/login">
+        <div class="input-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Enter your username"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+          />
+        </div>
+
+        
+
+        <button type="submit">Next →</button>
+      </form>
+
+      <a href="/" class="back-home">Back to Home</a>
+    </div>
+  </body>
+</html>
