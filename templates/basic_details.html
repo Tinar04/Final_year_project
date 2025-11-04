@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stress Assessment - Basic Details</title>
+  <style>
+    /* ---------- GLOBAL STYLES ---------- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: url("/static/images/login-bg.jpg") center/cover no-repeat fixed;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Gradient overlay */
+    /* body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(95, 145, 255, 0.5),
+        rgba(185, 125, 255, 0.5),
+        rgba(255, 200, 250, 0.4)
+      );
+      backdrop-filter: blur(6px);
+      z-index: 0;
+    } */
+
+    /* ---------- CONTAINER ---------- */
+    .container {
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 3rem;
+      border-radius: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      max-width: 500px;
+      width: 90%;
+      backdrop-filter: blur(10px);
+      animation: fadeIn 0.8s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.7rem;
+      color: #333;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    p {
+      text-align: center;
+      color: #555;
+      margin-bottom: 2rem;
+      font-size: 1.0rem;
+    }
+
+    label {
+      display: block;
+      font-size: 1rem;
+      color: #333;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1.5px solid #ccc;
+      font-size: 0.80rem;
+      margin-bottom: 1.5rem;
+      background: rgba(255, 255, 255, 0.85);
+      transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #6b63ff;
+      box-shadow: 0 0 8px rgba(107, 99, 255, 0.3);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+    }
+
+    button {
+      flex: 1;
+      padding: 0.7rem;
+      border-radius: 2rem;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: 500;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #666;
+      color: #333;
+    }
+
+    .btn-outline:hover {
+      background: rgba(255,255,255,0.6);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #5a60ff, #8a63ff);
+      color: white;
+      box-shadow: 0 4px 12px rgba(90, 96, 255, 0.4);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4c52e0, #7952e6);
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tell us about yourself</h1>
+    <p>This helps us personalize your stress assessment</p>
+
+    <form method="POST" action="/basic_details" id="basicForm">
+      <label for="age">Age</label>
+      <input type="number" id="age" name="age" required min="1" max="120" placeholder="Enter your age">
+
+      <label for="gender">Gender</label>
+      <select id="gender" name="gender" required>
+        <option value="">Select your gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+        <option value="prefer-not-to-say">Prefer not to say</option>
+      </select>
+
+      <label for="occupation">Occupation</label>
+      <select id="occupation" name="occupation" required>
+        <option value="">Select your occupation</option>
+        <option value="student">Student</option>
+        <option value="working">Working</option>
+        <option value="non-working">Non-working</option>
+      </select>
+
+      <div class="button-group">
+        <button type="button" class="btn-outline" onclick="window.location.href='/'">
+          ← Back to Home
+        </button>
+        <button type="submit" class="btn-primary">
+          Take Test Now →
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Save age and gender to localStorage before navigating to next form
+    document.getElementById("basicForm").addEventListener("submit", function () {
+      const age = document.getElementById("age").value;
+      const gender = document.getElementById("gender").value;
+
+      localStorage.setItem("user_age", age);
+      localStorage.setItem("user_gender", gender);
+    });
+  </script>
+</body>
+
+</html>
