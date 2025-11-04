@@ -2,6 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz 18–21</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 10;
+      padding: 10;
+    }
+
+    body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: url("/static/images/login-bg.jpg") center/cover no-repeat fixed;
+
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111827;
+    }
+
+    .card {
+      background: #fff;
+      width: 90%;
+      max-width: 720px;
+      padding: 40px 50px;
+      border-radius: 18px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.07);
+    }
+
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1f2937;
+    }
+
+    p.subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 40px;
+      font-size: 1rem;
+    }
+
+    .question {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .question:hover {
+      border-color: #c7d2fe;
+      background-color: #f8faff;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 0.95rem;
+      background-color: #fff;
+      color: #111827;
+      outline: none;
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%),
+        linear-gradient(135deg, #6b7280 50%, transparent 50%);
+      background-position: calc(100% - 20px) calc(1em + 2px),
+        calc(100% - 15px) calc(1em + 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    select:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      background: linear-gradient(to right, #6366f1, #8b5cf6);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 0;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 30px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    @media (max-width: 600px) {
+      .card {
+        padding: 28px 24px;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Mental Health Rating (Age 18–21)</h1>
+    <p class="subtitle">Rate each factor on a scale of 1–5, where 1 is low/minimal and 5 is high/excessive</p>
+
+        <form method="POST" action="/quiz_18_21">
+
+       {% set fields = [
+        "anxiety_level","self_esteem","mental_health_history","depression",
+        "headache","blood_pressure","sleep_quality","breathing_problem",
+        "noise_level","living_conditions","safety","basic_needs",
+        "academic_performance","study_load","teacher_student_relationship",
+        "future_career_concerns","social_support","peer_pressure",
+        "extracurricular_activities","bullying"
+      ] %}
+
+      {% for f in fields %}
+      <div class="question">
+        <label for="{{ f|lower|replace(' ','_') }}">{{ f }}</label>
+        <select id="{{ f|lower|replace(' ','_') }}" name="{{ f|lower|replace(' ','_') }}" required>
+          <option value="">Select a rating (1–5)</option>
+          <option value="1">1 - Very Low</option>
+          <option value="2">2 - Low</option>
+          <option value="3">3 - Moderate</option>
+          <option value="4">4 - High</option>
+          <option value="5">5 - Very High</option>
+        </select>
+      </div>
+      {% endfor %}
+
+      <button type="submit">Submit Assessment</button>
+    </form>
+  </div>
+</body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Quiz 18–21</title>
   <style>
@@ -47,4 +211,4 @@
     </form>
   </div>
 </body>
-</html>
+</html> -->
