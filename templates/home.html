@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stress Indicator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: linear-gradient(135deg, #f9fafb, #ffffff);
+      color: #1e293b;
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3 {
+      color: #0f172a;
+      font-weight: 400;
+    }
+
+    p {
+      color: #475569;
+    }
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 1.25rem;
+    }
+
+    .section {
+      padding: 80px 20px;
+    }
+
+    .max-w-6xl {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #fff;
+      padding: 14px 36px;
+      border-radius: 9999px;
+      font-size: 18px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn:hover {
+      background: linear-gradient(135deg, #4338ca, #4f46e5);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn svg {
+      margin-left: 10px;
+      stroke: currentColor;
+    }
+
+    .hero {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      color: #111827;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: url('{{ url_for("static", filename="images/hero-meditation.jpg") }}') center/cover no-repeat;
+      z-index: 0;
+      transform: scale(1.05);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.9));
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 780px;
+      padding: 20px;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+
+    .hero h1 {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .hero p {
+      font-size: 1.3rem;
+      margin-bottom: 40px;
+      color: #334155;
+    }
+
+    .grid {
+      display: grid;
+      gap: 48px;
+      align-items: center;
+    }
+
+    @media (min-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+    }
+
+    .rounded-3xl {
+      border-radius: 24px;
+    }
+
+    .shadow-soft {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .bg-stress-low { background-color: #22c55e; }
+    .bg-stress-medium { background-color: #facc15; }
+    .bg-stress-high { background-color: #ef4444; }
+
+    .text-muted-foreground { color: #64748b; }
+
+    footer {
+      background: #f8fafc;
+      padding: 80px 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    footer h3 {
+      color: #0f172a;
+    }
+
+    footer p {
+      color: #475569;
+    }
+
+    footer .max-w-6xl {
+      text-align: center;
+    }
+
+    .arrow-right {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-up {
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeUp 1.2s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Stress Indicator</h1>
+      <p>Understanding your stress levels is the first step toward a calmer, healthier life.</p>
+      <button class="btn" onclick="navigateToLogin()">
+        Get Started
+        <svg class="arrow-right" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="max-w-6xl">
+      <div class="grid grid-2 mb-20">
+        <div class="fade-up">
+          <h2 class="text-4xl font-light mb-6">Understanding Stress</h2>
+          <p class="text-lg text-muted-foreground mb-4">
+            Stress is your body's natural response to challenges and demands. While some stress can be motivating, chronic stress can affect your physical and mental well-being.
+          </p>
+          <p class="text-lg text-muted-foreground">
+            Our Stress Indicator helps you identify your current stress levels through a comprehensive assessment of your lifestyle, habits, and health markers.
+          </p>
+        </div>
+        <div class="rounded-3xl overflow-hidden shadow-soft fade-up ">
+          <img src="{{ url_for('static', filename='images/yoga-journal.jpg') }}" alt="Yoga Journal">
+        </div>
+      </div>
+
+      <div class="grid grid-3 mb-20 fade-up">
+        <div class="card">
+          <div class="w-12 h-12 rounded-full bg-stress-low/20 flex items-center justify-center mb-4">
+            <div class="w-6 h-6 rounded-full bg-stress-low"></div>
+          </div>
+          <h3 class="text-2xl font-light mb-3">Low Stress</h3>
+          <p>You're managing well. Your habits support mental and physical wellness. Keep up the balanced lifestyle.</p>
+        </div>
+
+        <div class="card">
+          <div class="w-12 h-12 rounded-full bg-stress-medium/20 flex items-center justify-center mb-4">
+            <div class="w-6 h-6 rounded-full bg-stress-medium"></div>
+          </div>
+          <h3 class="text-2xl font-light mb-3">Medium Stress</h3>
+          <p>You're experiencing moderate stress. Consider incorporating more relaxation techniques and healthy habits into your routine.</p>
+        </div>
+
+        <div class="card">
+          <div class="w-12 h-12 rounded-full bg-stress-high/20 flex items-center justify-center mb-4">
+            <div class="w-6 h-6 rounded-full bg-stress-high"></div>
+          </div>
+          <h3 class="text-2xl font-light mb-3">High Stress</h3>
+          <p>Your stress levels need attention. Consider reaching out for support and making lifestyle adjustments for better well-being.</p>
+        </div>
+      </div>
+
+
+      <div class="grid grid-2 mb-20 fade-up">
+        <div class="rounded-3xl overflow-hidden shadow-soft">
+          <img src="{{ url_for('static', filename='images/nature-calm.jpg') }}" alt="Calm nature scene">
+        </div>
+        <div>
+          <h2 class="text-4xl font-light mb-6">Find Your Balance</h2>
+          <p class="text-lg text-muted-foreground mb-4">
+            Balance is key to managing stress effectively. Through mindful practices, proper rest, and healthy habits, you can achieve a more peaceful state of mind.
+          </p>
+          <p class="text-lg text-muted-foreground">
+            Our assessment considers multiple factors including sleep quality, physical activity, nutrition, and social connections to give you a complete picture.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-2 mb-20 fade-up">
+        <div>
+          <h2 class="text-4xl font-light mb-6">Track Your Journey</h2>
+          <p class="text-lg text-muted-foreground mb-4">
+            Understanding your stress patterns is the first step toward meaningful change. Regular self-assessment helps you stay aware and make informed decisions about your wellness.
+          </p>
+          <p class="text-lg text-muted-foreground mb-6">
+            Take a few minutes to complete our comprehensive stress assessment and receive personalized insights about your current state.
+          </p>
+          <button class="btn" onclick="navigateToLogin()">
+            Start Assessment
+            <svg class="arrow-right" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <div class="rounded-3xl overflow-hidden shadow-soft">
+          <img src="{{ url_for('static', filename='images/journal-desk.jpg') }}" alt="Journal on desk" />
+        </div>
+      </div>
+
+      <div class="grid grid-2 fade-up">
+        <div class="rounded-3xl overflow-hidden shadow-soft">
+          <img src="{{ url_for('static', filename='images/plants-calm.jpg') }}" alt="Calming plants" />
+        </div>
+        <div>
+          <h2 class="text-4xl font-light mb-6">Cultivate Wellness</h2>
+          <p class="text-lg text-muted-foreground">
+            Just as plants need the right environment to thrive, so do you. Create a supportive environment for your mental and physical health through conscious choices and self-awareness.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="max-w-6xl">
+      <h3 class="text-3xl font-light mb-6">About This Project</h3>
+      <p class="text-lg text-muted-foreground mb-4">
+        The Stress Indicator helps you understand and manage your stress levels through a detailed lifestyle and wellness assessment. Recognize your stress state, then take small, meaningful steps toward balance and clarity.
+      </p>
+      <p class="text-muted-foreground mt-8">
+        © 2025 Stress Indicator — Supporting your journey to wellness.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+   
+    function navigateToLogin() {
+      window.location.href = "login";
+    }
+  </script>
+</body>
+</html>
