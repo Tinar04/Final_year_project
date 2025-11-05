@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 import pickle
@@ -124,42 +123,130 @@ def _to_float_safe(d):
 
 @app.route('/quiz_18_21', methods=['GET', 'POST'])
 def quiz_18_21():
+    print("\n===  Quiz 18–21 Form Submitted ===")
+
     if request.method == 'POST':
-        print("Quiz 18-21 form submitted.")
+        data = request.form.to_dict()
+        print("Received form data:", data)
 
-        user_input = {k: request.form.get(k, 0) for k in [
-            'anxiety_level', 'self_esteem', 'mental_health_history', 'depression',
-            'headache', 'blood_pressure', 'sleep_quality', 'breathing_problem',
-            'noise_level', 'living_conditions', 'safety', 'basic_needs',
-            'academic_performance', 'study_load', 'teacher_student_relationship',
-            'future_career_concerns', 'social_support', 'peer_pressure',
-            'extracurricular_activities', 'bullying'
-        ]}
-
-        session['user_input'] = user_input
-        session['age_group'] = '18-21'
-
+       
         try:
-            df = pd.DataFrame([_to_float_safe(user_input)])
+            df = pd.DataFrame([data], dtype=float)
+            print(" DataFrame created successfully:\n", df)
         except Exception as e:
-            print("DataFrame creation failed:", e)
-            return render_template('error.html', message="Form data processing failed.")
+            print(" Error creating DataFrame:", e)
+            return render_template("error.html", message="Error processing form data. Please try again.")
 
+        
         result = None
         try:
+            print(" Checking model and pipeline readiness...")
+
             if preprocess_pipeline_new_18_21 is not None:
                 try:
+                    print("🔹 Trying pipeline.predict()...")
                     result = preprocess_pipeline_new_18_21.predict(df)[0]
-                except Exception:
-                    transformed = preprocess_pipeline_new_18_21.transform(df)
-                    result = model_18_21.predict(transformed)[0]
-            else:
-                result = model_18_21.predict(df)[0]
-        except Exception as e:
-            print("Prediction error (18–21):", e)
-            result = 1
+                    print(" Prediction successful via pipeline:", result)
 
-        print("Predicted result (18–21):", result)
+                except Exception as e1:
+                    print(" pipeline.predict() failed:", e1)
+                    try:
+                        print("🔹 Attempting transform() + model.predict() fallback...")
+                        transformed = preprocess_pipeline_new_18_21.transform(df)
+                        result = model_18_21.predict(transformed)[0]
+                        print(" Prediction successful via fallback:", result)
+                    except Exception as e2:
+                        print(" model.predict() failed:", e2)
+                        return render_template(
+                            "error.html",
+                            message=f"Model prediction failed. Please contact admin.<br><small>{e2}</small>"
+                        )
+
+            elif model_18_21 is not None:
+                print(" No preprocessing pipeline found. Using model directly...")
+                result = model_18_21.predict(df)[0]
+                print(" Prediction successful (model only):", result)
+
+            else:
+                print(" No model or pipeline object available.")
+                return render_template("error.html", message="Model not loaded. Please try again later.")
+
+        except Exception as e:
+            print(" General prediction error:", e)
+            return render_template("error.html", message=f"Prediction failed. Details: {e}")
+
+       
+        if result is None:
+            print(" No prediction result generated.")
+            return render_template("error.html", message="No prediction result generated. Please retry.")
+
+        print(" Final Predicted result (18–21):", result)
+        return redirect(url_for("result", result=result))
+
+    
+    return render_template("quiz_18_21.html")
+
+
+
+@app.route('/quiz_22_60', methods=['GET', 'POST'])
+def quiz_22_60():
+    print("\n===  [ROUTE] Quiz 22–60 Form Triggered ===")
+
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        print(" Received form data:", data)
+
+        session['user_input'] = data
+        session['age_group'] = '22-60'
+
+        try:
+            df = pd.DataFrame([data])
+            print(" DataFrame created successfully:\n", df)
+        except Exception as e:
+            return render_template("error.html", message=f"Error processing form data.<br><small>{e}</small>")
+
+        categorical_cols = [
+            'Gender', 'Marital_Status', 'Smoking_Habit', 'Meditation_Practice',
+            'Exercise_Type', 'Occupation', 'Wake_Up_Time', 'Bed_Time'
+        ]
+        numeric_cols = [c for c in df.columns if c not in categorical_cols]
+
+        try:
+            df[categorical_cols] = df[categorical_cols].astype(str).fillna("Unknown")
+            df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+            print("✅ Data cleaning completed successfully.")
+        except Exception as e:
+            return render_template("error.html", message=f"Error preparing data.<br><small>{e}</small>")
+
+        try:
+            print(" Running CatBoost model prediction...")
+            from catboost import Pool
+
+            try:
+                cat_features = cat_model.get_cat_feature_names()
+                print(" Loaded cat features from model metadata.")
+            except Exception:
+                cat_features = categorical_cols
+                print(" Using fallback categorical features list.")
+
+            pool = Pool(df, cat_features=cat_features)
+            result = cat_model.predict(pool)[0]
+            print(" Raw model prediction:", result)
+
+            
+            result = str(result).strip()
+
+            result = result.replace("[", "").replace("]", "").replace("'", "")
+
+            label_map = {"Low": 0, "Medium": 1, "High": 2}
+            result = label_map.get(result, 1)
+
+            result = int(result)
+
+            print("Final normalized result (22–60):", result)
+
+        except Exception as e:
+            return render_template("error.html", message=f" Model Prediction Failed.<br><small>{e}</small>")
 
         if 'user_id' in session:
             try:
@@ -167,77 +254,10 @@ def quiz_18_21():
                 if user:
                     user.prediction = str(result)
                     db.session.commit()
-            except Exception as e:
-                print("Database save error:", e)
-
-        return redirect(url_for('result', result=result))
-
-    return render_template('quiz_18_21.html')
-
-
-@app.route('/quiz_22_60', methods=['GET', 'POST'])
-def quiz_22_60():
-    if request.method == 'POST':
-        print("Quiz 22–60 form submitted.")
-
-        user_input = {k: request.form.get(k, '') for k in [
-            'Age', 'Gender', 'Occupation', 'Marital_Status', 'Sleep_Duration',
-            'Sleep_Quality', 'Wake_Up_Time', 'Bed_Time', 'Physical_Activity',
-            'Screen_Time', 'Caffeine_Intake', 'Alcohol_Intake', 'Smoking_Habit',
-            'Work_Hours', 'Travel_Time', 'Social_Interactions', 'Meditation_Practice',
-            'Exercise_Type', 'Blood_Pressure', 'Cholesterol_Level', 'Blood_Sugar_Level'
-        ]}
-
-        session['user_input'] = user_input
-        session['age_group'] = '22-60'
-
-        df = pd.DataFrame([user_input])
-        categorical_cols = [
-            'Gender', 'Marital_Status', 'Smoking_Habit', 'Meditation_Practice',
-            'Exercise_Type', 'Occupation', 'Wake_Up_Time', 'Bed_Time'
-        ]
-        numeric_cols = [c for c in df.columns if c not in categorical_cols]
-
-        df[categorical_cols] = df[categorical_cols].astype(str).fillna("Unknown")
-        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
-
-        import numpy as np
-        result = None
-
-        try:
-            from catboost import Pool
-            try:
-                cat_features = cat_model.get_cat_feature_names()
             except Exception:
-                cat_features = categorical_cols
+                print(" Database save error")
 
-            pool = Pool(df, cat_features=cat_features)
-            result = cat_model.predict(pool)[0]
-
-            if isinstance(result, (list, tuple, np.ndarray)):
-                result = result[0]
-
-            try:
-                result = int(round(float(result)))
-            except Exception:
-                result = 1
-
-            if result not in [0, 1, 2]:
-                result = 1
-
-        except Exception as e:
-            print("Prediction error (22–60):", e)
-            result = 1
-
-        print("Predicted result (22–60):", result)
-
-        if 'user_id' in session:
-            user = User.query.get(session['user_id'])
-            if user:
-                user.prediction = str(result)
-                db.session.commit()
-
-        return redirect(url_for('result', result=result))
+        return redirect(url_for('result', result=int(result)))
 
     return render_template('quiz_22_60.html')
 
@@ -361,210 +381,3 @@ def result():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-# from flask import Flask, render_template,jsonify, request, redirect, url_for, session
-# from flask_sqlalchemy import SQLAlchemy
-# import pickle
-# import os
-# from advice_func import get_advice_18_21
-# import random
-# import numpy
-# import pandas as pd
-# # from catboost import CatBoostClassifier
-
-# # from advice_func import get_advice_18_21, get_advice_22_60
-
-
-
-# with open(r'ml_models\model.pkl', 'rb') as f:
-#     model_18_21 = pickle.load(f)
-
-# with open(r'ml_models\preprocess__new_pipeline(18-21).pkl', 'rb') as f:
-#     preprocess_pipeline_new_18_21 = pickle.load(f)
-
-# with open(r'ml_models\cat_model.pkl', 'rb') as f:
-#     cat_model = pickle.load(f)
-
-# with open(r'ml_models\preprocess_cat_new_pipeline.pkl', 'rb') as f:
-#     preprocess_pipeline_new_catboost = pickle.load(f)
-
-# app = Flask(__name__)
-# app.secret_key = "my_secret_key"
-
-
-
-
-# # Database config (SQLite)
-# db_path = os.path.join(os.getcwd(), "Mental_Stress.db")
-# app.config['SQLALCHEMY_DATABASE_URI'] =f"sqlite:///{db_path}"
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# db = SQLAlchemy(app)
-
-# # user model schema
-
-# class User(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     username = db.Column(db.String(30), nullable=False)
-#     email = db.Column(db.String(50), unique=True, nullable=False)
-#     phone = db.Column(db.String(15), nullable=False)
-#     password = db.Column(db.String(30), nullable=False)
-#     gender = db.Column(db.String(3))
-#     age = db.Column(db.Integer)
-#     occupation = db.Column(db.String(50))
-
-#     # Quiz answers + prediction
-#     q1 = db.Column(db.Integer)
-#     q2 = db.Column(db.Integer)
-#     q3 = db.Column(db.Integer)
-    
-#     prediction = db.Column(db.String(50))
-
-#     def __repr__(self):
-#          return f"{self.age},{self.username}"
-
-# # database
-# with app.app_context():
-#     db.create_all()
-# print("Database file exists:", os.path.isfile("Mental_Stress.db"))
-
-
-# # basic detail route
-# @app.route('/basic_details',methods=['GET','POST'])
-# def basic_details():
-#     if request.method == 'POST':
-#         gender = request.form['gender']
-#         age = int(request.form['age'])
-#         occupation = request.form['occupation']
-
-#         # updating database
-#         user = User.query.get(session['user_id'])
-#         user.gender = gender
-#         user.age = age
-#         user.occupation = occupation
-#         db.session.commit()
-
-#     # the age condition
-#     if age >= 18 and age <= 21:
-#         return redirect(url_for('quiz_18_21'))
-#     else:
-#         return redirect(url_for('quiz_22_60'))
-    
-#     return render_template('basic_details.html')
-
-# # quize 18-21 route
-# @app.route('/quiz_18_21',methods=['GET','POST'])
-# def quiz_18_21():
-#     if request.method == 'POST':
-#     #   collecting user inputs
-#        user_input = {
-#             'anxiety_level': request.form['anxiety_level'],
-#             'self_esteem': request.form['self_esteem'],
-#             'mental_health_history': request.form['mental_health_history'],
-#             'depression': request.form['depression'],
-#             'headache': request.form['headache'],
-#             'blood_pressure': request.form['blood_pressure'],
-#             'sleep_quality': request.form['sleep_quality'],
-#             'breathing_problem': request.form['breathing_problem'],
-#             'noise_level': request.form['noise_level'],
-#             'living_conditions': request.form['living_conditions'],
-#             'safety': request.form['safety'],
-#             'basic_needs': request.form['basic_needs'],
-#             'academic_performance': request.form['academic_performance'],
-#             'study_load': request.form['study_load'],
-#             'teacher_student_relationship': request.form['teacher_student_relationship'],
-#             'future_career_concerns': request.form['future_career_concerns'],
-#             'social_support': request.form['social_support'],
-#             'peer_pressure': request.form['peer_pressure'],
-#             'bullying': request.form['bullying'] 
-#        }
-       
-#        df = pd.DataFrame([user_input])
-#      # preprocessing
-#        df = preprocess_pipeline_new_18_21.transform(df)
-#      # prediction 
-#        result = model_18_21.predict(df)[0]
-#      #personalized advice
-#        advice_list = get_advice_18_21(user_input,result)
-#       # result in bd
-#        user = User.query.get(session['user_id'])
-#        user.stress_level = result
-#        db.session.commit()
-
-#        return redirect(url_for('result',result=result)) 
-      
-#     return render_template('quiz_18_21.html')
- 
-
-# # rout for 22-60 quiz
-# @app.route('/quiz_22_60',methods=['GET','POST'])
-# def quiz_22_60():
-#     if request.method == 'POST':
-#         user_input = {
-#         'Age': request.form['Age'],
-#         'Gender': request.form['Gender'],
-#         'Occupation': request.form['Occupation'],
-#         'Marital_Status': request.form['Marital_Status'],
-#         'Sleep_Duration': request.form['Sleep_Duration'],
-#         'Sleep_Quality': request.form['Sleep_Quality'],
-#         'Wake_Up_Time': request.form['Wake_Up_Time'],
-#         'Bed_Time': request.form['Bed_Time'],
-#         'Physical_Activity': request.form['Physical_Activity'],
-#         'Screen_Time': request.form['Screen_Time'],
-#         'Caffeine_Intake': request.form['Caffeine_Intake'],
-#         'Alcohol_Intake': request.form['Alcohol_Intake'],
-#         'Smoking_Habit': request.form['Smoking_Habit'],
-#         'Work_Hours': request.form['Work_Hours'],
-#         'Travel_Time': request.form['Travel_Time'],
-#         'Social_Interactions': request.form['Social_Interactions'],
-#         'Meditation_Practice': request.form['Meditation_Practice'],
-#         'Exercise_Type': request.form['Exercise_Type'],
-#         'Blood_Pressure': request.form['Blood_Pressure'],
-#         'Cholesterol_Level': request.form['Cholesterol_Level'],
-#         'Blood_Sugar_Level': request.form['Blood_Sugar_Level']
-#             }
-
-#         df = pd.DataFrame([user_input]) 
-#             # preprocessing
-#         processed = preprocess_pipeline_new_catboost.transform(df)
-        
-#             # prediction
-#         result = cat_model.predict(processed)[0]
-#             #personalized advice
-#             # advice = get_advice_22_60(user_input)    
-#         # saving in db
-        
-#         user = User.query.get(session['user_id'])
-#         user.stress_level = result
-#         db.session.commit    
-            
-#         return redirect(url_for('result', result=result))
-#     return render_template('quiz_22_60.html')
-
-
-# @app.route('/')
-# def home():
-#     return render_template('test_model.html')
-# @app.route('/result')
-# def result():
-#     prediction = request.args.get('result', None)
-#     return render_template('result.html', prediction=prediction)
-
-# # run app 
-# if __name__=="__main__":
-#         app.run(debug=True)
-
-
-
-
-
-
-
-
-
-
