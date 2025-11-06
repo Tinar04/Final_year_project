@@ -1,5 +1,7 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 import pickle
 import os
 import pandas as pd
@@ -36,22 +38,25 @@ except FileNotFoundError:
 app = Flask(__name__)
 app.secret_key = "my_secret_key"
 
-db_path = os.path.join(os.getcwd(), "Mental_Stress.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+MYSQL_URL = os.getenv(
+    "DB_URL",
+    "mysql+pymysql://root:tina123@localhost/db_mental_stress"
+)
+app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
 class User(db.Model):
+    __tablename__ = "user" 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(30), nullable=False)
     email = db.Column(db.String(50), unique=True, nullable=False)
-    phone = db.Column(db.String(15), nullable=False)
-    password = db.Column(db.String(30), nullable=False)
-    gender = db.Column(db.String(3))
+    password = db.Column(db.String(60), nullable=True)
+    gender = db.Column(db.String(10))
     age = db.Column(db.Integer)
     occupation = db.Column(db.String(50))
-    prediction = db.Column(db.String(50))
+    prediction = db.Column(db.String(50)) 
 
     def __repr__(self):
         return f"{self.username} ({self.age})"
@@ -59,9 +64,90 @@ class User(db.Model):
 
 with app.app_context():
     db.create_all()
+    try:
+        db.session.execute(text('SELECT 1'))
+        print("Connected successfully to DB & ensured tables.")
+    except Exception as e:
+        print("DB connectivity problem:", e)
 
-print("Database file exists:", os.path.isfile("Mental_Stress.db"))
 print(f"Models loaded: model_18_21={type(model_18_21)}, cat_model={type(cat_model)}")
+
+
+# -----------------------------
+def ensure_user_saved():
+    """
+    Create (or fetch) a user from session data after basic details step.
+    Puts user_id into session for later updates (e.g., prediction).
+    """
+    user_login = session.get('user_data', {}) 
+    user_basic = session.get('user_input_basic', {})  
+
+    if not user_login or not user_basic:
+        return None
+
+    email = (user_login.get('email') or "").strip()
+    if not email:
+        return None
+
+    
+    existing = User.query.filter_by(email=email).first()
+    if existing:
+        
+        changed = False
+        if existing.username != user_login.get('username'):
+            existing.username = user_login.get('username'); changed = True
+        if user_basic.get('gender') and existing.gender != user_basic.get('gender'):
+            existing.gender = user_basic.get('gender'); changed = True
+        if user_basic.get('age') and existing.age != int(user_basic.get('age')):
+            existing.age = int(user_basic.get('age')); changed = True
+        if user_basic.get('occupation') and existing.occupation != user_basic.get('occupation'):
+            existing.occupation = user_basic.get('occupation'); changed = True
+        if changed:
+            db.session.commit()
+        session['user_id'] = existing.id
+        return existing.id
+
+    
+    try:
+        new_user = User(
+            username=user_login.get('username') or "Anonymous",
+            email=email,
+            password=(user_login.get('password') or None),
+            gender=user_basic.get('gender'),
+            age=int(user_basic.get('age')) if user_basic.get('age') else None,
+            occupation=user_basic.get('occupation'),
+            prediction="Not yet predicted"
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        session['user_id'] = new_user.id
+        return new_user.id
+    except IntegrityError:
+        db.session.rollback()
+        
+        user = User.query.filter_by(email=email).first()
+        if user:
+            session['user_id'] = user.id
+            return user.id
+        return None
+    except Exception as e:
+        db.session.rollback()
+        print(" User save error:", e)
+        return None
+
+def map_catboost_label_to_int(label_value):
+    """
+    Normalize CatBoost string label to int class 0/1/2.
+    Handles cases like ['Low'] or bytes.
+    """
+    if label_value is None:
+        return 1
+    s = str(label_value).strip()
+    s = s.replace("[", "").replace("]", "").replace("'", "").replace('"', '')
+    label_map = {"Low": 0, "Medium": 1, "High": 2, "low": 0, "medium": 1, "high": 2}
+    return label_map.get(s, 1)
+
+# -----------------------------
 
 
 @app.route('/')
@@ -71,20 +157,21 @@ def home():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+    Very simple "session login" to capture username/email/password and move on.
+    """
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        email = request.form.get('email')
+        username = (request.form.get('username') or "").strip()
+        password = (request.form.get('password') or "").strip()
+        email = (request.form.get('email') or "").strip()
 
         session['user_data'] = {
             'username': username,
-            'email': email
+            'email': email,
+            'password': password
         }
-
         return redirect(url_for('basic_details'))
-
     return render_template('login.html')
-
 
 @app.route('/basic_details', methods=['GET', 'POST'])
 def basic_details():
@@ -99,17 +186,45 @@ def basic_details():
             'occupation': occupation
         }
 
-        try:
-            age_val = int(age)
-            if 18 <= age_val <= 21:
-                return redirect(url_for('quiz_18_21'))
+        user_login = session.get('user_data', {})
+
+        if user_login:
+
+            existing_user = User.query.filter_by(email=user_login.get('email')).first()
+
+            if existing_user:
+
+                existing_user.username = user_login.get('username')
+                existing_user.password = user_login.get('password')
+                existing_user.gender = gender
+                existing_user.age = int(age)
+                existing_user.occupation = occupation
+                db.session.commit()
+                session['user_id'] = existing_user.id
+
             else:
-                return redirect(url_for('quiz_22_60'))
-        except:
-            return redirect(url_for('basic_details'))
+                new_user = User(
+                    username=user_login.get('username'),
+                    email=user_login.get('email'),
+                    password=user_login.get('password'),
+                    gender=gender,
+                    age=int(age),
+                    occupation=occupation,
+                    prediction="Not yet predicted"
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                session['user_id'] = new_user.id
+
+        age_val = int(age)
+        if 18 <= age_val <= 21:
+            session['age_group'] = '18-21'
+            return redirect(url_for('quiz_18_21'))
+        else:
+            session['age_group'] = '22-60'
+            return redirect(url_for('quiz_22_60'))
 
     return render_template('basic_details.html')
-
 
 def _to_float_safe(d):
     out = {}
@@ -127,63 +242,59 @@ def quiz_18_21():
 
     if request.method == 'POST':
         data = request.form.to_dict()
-        print("Received form data:", data)
-
-       
-        try:
-            df = pd.DataFrame([data], dtype=float)
-            print(" DataFrame created successfully:\n", df)
-        except Exception as e:
-            print(" Error creating DataFrame:", e)
-            return render_template("error.html", message="Error processing form data. Please try again.")
+        print("Received form data (18-21):", data)
 
         
+        session['user_input'] = data
+        session['age_group'] = '18-21'
+
+        
+        try:
+            df = pd.DataFrame([data], dtype=float)
+            print(" DataFrame created successfully (18-21):\n", df)
+        except Exception as e:
+            print(" Error creating DataFrame (18-21):", e)
+            return render_template("error.html", message="Error processing form data. Please try again.")
+
         result = None
         try:
-            print(" Checking model and pipeline readiness...")
-
+            print(" Checking model and pipeline readiness (18-21)...")
             if preprocess_pipeline_new_18_21 is not None:
                 try:
-                    print("🔹 Trying pipeline.predict()...")
                     result = preprocess_pipeline_new_18_21.predict(df)[0]
-                    print(" Prediction successful via pipeline:", result)
-
+                    print(" Prediction via pipeline:", result)
                 except Exception as e1:
                     print(" pipeline.predict() failed:", e1)
                     try:
-                        print("🔹 Attempting transform() + model.predict() fallback...")
                         transformed = preprocess_pipeline_new_18_21.transform(df)
                         result = model_18_21.predict(transformed)[0]
-                        print(" Prediction successful via fallback:", result)
+                        print(" Prediction via fallback:", result)
                     except Exception as e2:
                         print(" model.predict() failed:", e2)
                         return render_template(
                             "error.html",
                             message=f"Model prediction failed. Please contact admin.<br><small>{e2}</small>"
                         )
-
             elif model_18_21 is not None:
-                print(" No preprocessing pipeline found. Using model directly...")
                 result = model_18_21.predict(df)[0]
-                print(" Prediction successful (model only):", result)
-
+                print(" Prediction (model only):", result)
             else:
-                print(" No model or pipeline object available.")
                 return render_template("error.html", message="Model not loaded. Please try again later.")
-
         except Exception as e:
-            print(" General prediction error:", e)
+            print(" General prediction error (18-21):", e)
             return render_template("error.html", message=f"Prediction failed. Details: {e}")
 
-       
         if result is None:
-            print(" No prediction result generated.")
             return render_template("error.html", message="No prediction result generated. Please retry.")
 
         print(" Final Predicted result (18–21):", result)
-        return redirect(url_for("result", result=result))
+        try:
+            result_int = int(result)
+        except Exception:
+            result_int = map_catboost_label_to_int(result)
 
-    
+        return redirect(url_for("result", result=result_int))
+
     return render_template("quiz_18_21.html")
 
 
@@ -194,14 +305,15 @@ def quiz_22_60():
 
     if request.method == 'POST':
         data = request.form.to_dict()
-        print(" Received form data:", data)
+        print(" Received form data (22-60):", data)
 
+        
         session['user_input'] = data
         session['age_group'] = '22-60'
 
         try:
             df = pd.DataFrame([data])
-            print(" DataFrame created successfully:\n", df)
+            print(" DataFrame created successfully (22-60):\n", df)
         except Exception as e:
             return render_template("error.html", message=f"Error processing form data.<br><small>{e}</small>")
 
@@ -212,9 +324,12 @@ def quiz_22_60():
         numeric_cols = [c for c in df.columns if c not in categorical_cols]
 
         try:
+            for col in categorical_cols:
+                if col not in df.columns:
+                    df[col] = "Unknown"
             df[categorical_cols] = df[categorical_cols].astype(str).fillna("Unknown")
             df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
-            print("✅ Data cleaning completed successfully.")
+            print("✅ Data cleaning completed successfully (22-60).")
         except Exception as e:
             return render_template("error.html", message=f"Error preparing data.<br><small>{e}</small>")
 
@@ -230,36 +345,19 @@ def quiz_22_60():
                 print(" Using fallback categorical features list.")
 
             pool = Pool(df, cat_features=cat_features)
-            result = cat_model.predict(pool)[0]
-            print(" Raw model prediction:", result)
+            raw_pred = cat_model.predict(pool)[0]
+            print(" Raw model prediction:", raw_pred)
 
-            
-            result = str(result).strip()
-
-            result = result.replace("[", "").replace("]", "").replace("'", "")
-
-            label_map = {"Low": 0, "Medium": 1, "High": 2}
-            result = label_map.get(result, 1)
-
-            result = int(result)
-
-            print("Final normalized result (22–60):", result)
+            result_int = map_catboost_label_to_int(raw_pred)
+            print(" Final normalized result (22–60 int):", result_int)
 
         except Exception as e:
             return render_template("error.html", message=f" Model Prediction Failed.<br><small>{e}</small>")
 
-        if 'user_id' in session:
-            try:
-                user = User.query.get(session['user_id'])
-                if user:
-                    user.prediction = str(result)
-                    db.session.commit()
-            except Exception:
-                print(" Database save error")
-
-        return redirect(url_for('result', result=int(result)))
+        return redirect(url_for('result', result=int(result_int)))
 
     return render_template('quiz_22_60.html')
+
 
 @app.route('/result')
 def result():
@@ -268,103 +366,102 @@ def result():
 
     try:
         result_value = int(request.args.get('result', -1))
-        print(f"[INFO] Retrieved result value from request: {result_value}")
-    except (TypeError, ValueError):
+    except:
         result_value = -1
         print("[WARN] Invalid result value — defaulting to -1")
 
     user_input = session.get('user_input', {}) or {}
     age_group = session.get('age_group', '18-21')
-    print(f"[INFO] Retrieved session data — age_group: {age_group}, user_input keys: {list(user_input.keys())}")
+    user_id = session.get('user_id')
+
+    print(f"[INFO] age_group={age_group}, user_id={user_id}")
+
+    if user_id is not None and result_value in (0, 1, 2, 3):
+        try:
+            user = User.query.get(user_id)
+            if user:
+                user.prediction = str(result_value)
+                db.session.commit()
+                print("✅ Prediction saved successfully to database.")
+        except Exception as e:
+            db.session.rollback()
+            print("⚠️ Failed to save prediction to DB:", e)
+
 
     stress_levels = {
         0: {
             "title": "Low Stress",
             "subtitle": "Assessment Complete",
-            "description": "You're maintaining a balanced lifestyle with healthy habits. Keep doing what works for you.",
-            "summary": "Balanced lifestyle with healthy habits",
-            "distribution": {"low": 80, "medium": 85, "high": 85},
+            "description": "You're maintaining a balanced lifestyle with healthy habits.",
+            "summary": "Balanced lifestyle",
+            "distribution": {"low": 80, "medium": 15, "high": 5},
             "default_advice": [
                 "Continue your current healthy routines.",
                 "Maintain a good work-life balance.",
                 "Keep regular sleep and exercise patterns.",
-                "Stay proactive in preventing unnecessary stress."
+                "Stay proactive to avoid unnecessary stress."
             ],
             "color": "#A7F3D0"
         },
         1: {
             "title": "Medium Stress Level",
             "subtitle": "Assessment Complete",
-            "description": "You're experiencing moderate stress levels. This is manageable with some lifestyle adjustments.",
+            "description": "You're experiencing moderate stress that can be improved.",
             "summary": "Moderate stress requiring attention",
             "distribution": {"low": 20, "medium": 60, "high": 20},
             "default_advice": [
                 "Reduce screen time, especially before bed.",
-                "Take short breaks between tasks to recharge.",
-                "Incorporate relaxation or mindfulness exercises.",
-                "Focus on improving sleep and maintaining physical activity."
+                "Take short breaks between tasks.",
+                "Try mindfulness or relaxation exercises.",
+                "Improve sleep consistency & daily routine."
             ],
             "color": "#FDE68A"
         },
         2: {
             "title": "High Stress Level",
             "subtitle": "Assessment Complete",
-            "description": "Your stress levels are high and could affect your well-being. It's important to take active steps to reduce it.",
+            "description": "Your stress level is high and should be addressed soon.",
             "summary": "Elevated stress needing support",
             "distribution": {"low": 10, "medium": 25, "high": 65},
             "default_advice": [
-                "Prioritize rest and disconnect from digital distractions.",
-                "Talk to someone you trust about what's stressing you.",
-                "Engage in physical activity to release tension.",
-                "Seek professional support if you feel overwhelmed."
+                "Disconnect from digital distractions.",
+                "Talk to someone trusted.",
+                "Engage in physical activity.",
+                "Seek professional support if needed."
             ],
             "color": "#FCA5A5"
         },
         3: {
             "title": "Severe Stress Level",
             "subtitle": "Assessment Complete",
-            "description": "Your stress level is severe. Please consider reaching out to a mental health professional for support.",
+            "description": "Your stress level is severe. Immediate care is recommended.",
             "summary": "Critical stress needing immediate care",
             "distribution": {"low": 5, "medium": 10, "high": 85},
             "default_advice": [
                 "Talk to a counselor or trusted person immediately.",
-                "Take time off from work or studies to rest.",
-                "Avoid isolation — connect with supportive people.",
-                "Engage in stress-reducing habits and professional therapy."
+                "Take rest from work/study pressures.",
+                "Avoid isolation — stay connected.",
+                "Consider therapy or guided intervention."
             ],
             "color": "#EF4444"
         }
     }
 
-    print("[INFO] Stress level data loaded successfully.")
-
     stress_data = stress_levels.get(result_value, stress_levels[1])
-    print(f"[INFO] Selected Stress Level: {stress_data['title']}")
-    print(f"[INFO] Distribution: {stress_data['distribution']}")
+
 
     try:
-        print(f"[INFO] Generating advice for age group: {age_group}")
-        if age_group == '18-21':
-            advice_list = get_advice_18_21(user_input, result_value)
-        else:
-            advice_list = get_advice_22_60(user_input, result_value)
-        print(f"[INFO] Advice function returned {len(advice_list)} items.")
+        advice_list = (
+            get_advice_18_21(user_input, result_value)
+            if age_group == '18-21'
+            else get_advice_22_60(user_input, result_value)
+        )
     except Exception as e:
-        print("[ERROR] Advice generation error:", e)
+        print("[ERROR] Advice generation failed:", e)
         advice_list = []
 
     if not advice_list:
         advice_list = stress_data["default_advice"]
-        print("[INFO] No personalized advice found — using default advice.")
-    else:
-        print("[INFO] Personalized advice successfully loaded.")
-
-    print("[INFO] Final render summary:")
-    print(f"   Result Value: {result_value}")
-    print(f"   Level Title: {stress_data['title']}")
-    print(f"   Advice Count: {len(advice_list)}")
-    print(f"   Theme Color: {stress_data['color']}")
-    print("============================\n")
 
     return render_template(
         'result.html',
@@ -377,6 +474,7 @@ def result():
         advice_list=advice_list,
         color=stress_data["color"]
     )
+
 
 
 if __name__ == "__main__":
